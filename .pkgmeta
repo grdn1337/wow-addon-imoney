@@ -1,0 +1,23 @@
+package-as: iMoney
+
+externals:
+  Libs/CallbackHandler-1.0:
+    url: svn://svn.wowace.com/wow/callbackhandler/mainline/trunk
+  Libs/LibStub:
+    url: svn://svn.wowace.com/wow/libstub/mainline/trunk
+  Libs/LibQTip-1.0:
+    url: svn://svn.wowace.com/wow/libqtip-1-0/mainline/trunk
+  Libs/AceAddon-3.0:
+    url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceAddon-3.0
+  Libs/AceDB-3.0:
+    url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceDB-3.0
+  Libs/AceEvent-3.0:
+    url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceEvent-3.0
+  Libs/AceLocale-3.0:
+    url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceLocale-3.0
+
+required-dependencies:
+  - libstub
+
+tools-used:
+  - libdatabroker-1-1
