@@ -6,6 +6,7 @@
 ## SavedVariables: iMoneyDB
 
 # Libraries
+#@no-lib-strip@
 Libs\LibStub\Libstub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
 Libs\libdatabroker-1-1\LibDataBroker-1.1.lua
@@ -16,6 +17,7 @@ Libs\AceAddon-3.0\AceAddon-3.0.xml
 Libs\AceDB-3.0\AceDB-3.0.xml
 Libs\AceEvent-3.0\AceEvent-3.0.xml
 Libs\AceLocale-3.0\AceLocale-3.0.xml
+#@end-no-lib-strip@
 
 # Locales
 Locales\Locales.xml
