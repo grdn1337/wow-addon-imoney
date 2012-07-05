@@ -1,6 +1,6 @@
 ## Interface: 50001
 ## Title: i|cffffffaaMoney|r
-## Version: 1.2.4
+## Version: 1.5.0
 ## Notes: LDB plugin for displaying your money
 ## Author: grdn
 ## SavedVariables: iMoneyDB

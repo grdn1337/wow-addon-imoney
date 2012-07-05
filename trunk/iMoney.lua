@@ -16,6 +16,8 @@ local _G = _G; -- upvalueing done here, since I call Globales with _G.func()...
 ------------------------------------------
 
 local Tooltip; -- This is our QTip object
+local HintTip; -- This is another QTip object
+
 local Gold = 0; -- This variable stores our current amount of gold
 local OldGold = 0; -- When the gold changed, here the "old" amount is been saved. We need that to calcualte if we made more or less money.
 local CharName = _G.GetUnitName("player", false); -- The charname doesn't change during a session. To prevent calling the function more than once, we simply store the name.
@@ -24,9 +26,9 @@ local COLOR_GOLD = "|cfffed100%s|r";
 local COLOR_RED  = "|cffff0000%s|r";
 local COLOR_GREEN= "|cff00ff00%s|r";
 
-local ICON_GOLD   = "|TInterface\\MoneyFrame\\UI-GoldIcon:14:14:2:0|t";
-local ICON_SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:14:14:2:0|t";
-local ICON_COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:14:14:2:0|t";
+local ICON_GOLD   = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:2:0|t";
+local ICON_SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:2:0|t";
+local ICON_COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:2:0|t";
 
 local ClassColors = {};
 for k in pairs(_G.LOCALIZED_CLASS_NAMES_MALE) do
@@ -112,6 +114,10 @@ function iMoney:FirstRun()
 	end
 end
 
+function iMoney:DeleteChar(name)
+	self.db.chars[name] = nil;
+end
+
 ------------------------------------------
 -- MoneyString and UpdateMoney
 ------------------------------------------
@@ -122,7 +128,7 @@ local function CreateMoneyString(money, encolor)
 	
 	local isLoss, gold, silver, copper;
 	
-	isLoss = money < 0 and 1 or nil; -- determines if we gained or lost money
+	isLoss = money < 0; -- determines if we gained or lost money
 	money = abs(money); -- the number is forced to be > 0
 	
 	gold = floor(money / (100 * 100));
@@ -130,9 +136,16 @@ local function CreateMoneyString(money, encolor)
 	copper = mod(money, 100);
 	
 	if( cfgStr___placeholder == 1 ) then
-		str =	(gold ~= 0 and _G.BreakUpLargeNumbers(gold)..ICON_GOLD or "")..
-					(silver ~= 0 and silver..ICON_SILVER or "")..
-					(copper ~= 0 and copper..ICON_COPPER or "");
+		str =	(gold > 0 and _G.BreakUpLargeNumbers(gold)..ICON_GOLD or "")..
+					((silver > 0 and gold > 0) and " " or "")..
+					(silver > 0 and silver..ICON_SILVER or "")..
+					((copper > 0 and silver > 0) and " " or "")..
+					(copper > 0 and copper..ICON_COPPER or "");
+		
+		-- this may happen, tricky one!			
+		if( str == "" ) then
+			str = copper..ICON_COPPER;
+		end
 	end
 	
 	if( encolor ) then
@@ -142,7 +155,7 @@ local function CreateMoneyString(money, encolor)
 			str = (COLOR_GREEN):format(str);
 		end
 	end
-	
+
 	return str;
 end
 
@@ -170,53 +183,125 @@ end
 -- UpdateTooltip
 ------------------------------------------
 
-local function iMoneyClickLine(_, name, button)
-	if( button == "RightButton" and name ~= CharName ) then
-		iMoney.db.chars[name] = nil;
-		iMoney:UpdateTooltip();
+local function LineLeave()
+	HintTip:Hide();
+	HintTip:Release();
+end
+
+local function LineClick(_, name, button)
+	if( button == "RightButton" ) then
+		_G.StaticPopupDialogs["IMONEY_DELETE"].text = ("%s\n%s: %s"):format("Confirm to delete from iMoney!", "Character", name);
+		
+		local popup = _G.StaticPopup_Show("IMONEY_DELETE");
+		if( popup ) then
+			popup.data = name;
+			Tooltip:Hide();
+		end
 	end
 end
 
-local function iMoneySort(a, b)
-	return a.gold > b.gold;
+local function LineEnter(anchor, name)
+	HintTip = LibQTip:Acquire("iSuite"..AddonName.."Hint");
+	HintTip:SetColumnLayout(2, "LEFT", "RIGHT");
+	HintTip:SetPoint("TOPLEFT", anchor, "BOTTOMRIGHT", 10, anchor:GetHeight()+2);
+	iMoney:UpdateTooltip(name);
+	HintTip:Show();
+end
+
+local function iMoneySort(a, b, sortByName)
+	if( sortByName ) then
+		return a.name < b.name;
+	else
+		if( a.gold == b.gold ) then
+			return iMoneySort(a, b, true);
+		else
+			return a.gold > b.gold;
+		end
+	end
 end
 
 local SortingTable = {};
-function iMoney:UpdateTooltip()
-	Tooltip:Clear();
+function iMoney:UpdateTooltip(queryName)
+	local tip = Tooltip;
+	local name = CharName;
 	
-	Tooltip:AddLine(
-		(COLOR_GOLD):format(L["Today Session"]),
-		CreateMoneyString(self.db.chars[CharName].gold_in - self.db.chars[CharName].gold_out, true)
-	);
-	Tooltip:AddSeparator(); -- my sister wanted it to bad! So here it is: a line in the tip. :D
-	Tooltip:AddLine(L["Gains"], CreateMoneyString(self.db.chars[CharName].gold_in, true));
-	Tooltip:AddLine(L["Losses"], CreateMoneyString(-self.db.chars[CharName].gold_out, true));
-	Tooltip:AddLine(" ");
-	
-	local total = 0;
-	
-	for k, v in pairs(self.db.chars) do
-		v.name = k;
-		table.insert(SortingTable, v);
+	if( queryName ) then
+		tip = HintTip;
+		name = queryName;
 	end
-	table.sort(SortingTable, iMoneySort);
 	
-	for i = 1, #SortingTable do
-		local line = Tooltip:AddLine(
-			("%s%s|r"):format(ClassColors[SortingTable[i].class], SortingTable[i].name),
-			CreateMoneyString(SortingTable[i].gold)
+	tip:Clear();
+	
+	if( queryName ) then
+		tip:AddHeader(
+			("%s%s|r"):format(ClassColors[self.db.chars[name].class], name)
 		);
-		total = total + SortingTable[i].gold;
-		
-		Tooltip:SetLineScript(line, "OnMouseDown", iMoneyClickLine, SortingTable[i].name);
+		tip:AddLine("");
 	end
 	
-	tclear(SortingTable);
-	
-	Tooltip:AddLine(" ");
-	Tooltip:AddLine(
-		(COLOR_GOLD):format(L["Total Gold"]),
-		CreateMoneyString(total)
+	tip:AddLine(
+		(COLOR_GOLD):format(L["Today Session"]),
+		CreateMoneyString(self.db.chars[name].gold_in - self.db.chars[name].gold_out, true)
 	);
+	tip:AddSeparator(); -- my sister wanted it to bad! So here it is: a line in the tip. :D
+	tip:AddLine(L["Gains"], CreateMoneyString(self.db.chars[name].gold_in, true));
+	tip:AddLine(L["Losses"], CreateMoneyString(-self.db.chars[name].gold_out, true));
+	tip:AddLine(" ");
+	
+	if( not queryName ) then
+		local total = 0;
+		
+		for k, v in pairs(self.db.chars) do
+			v.name = k;
+			table.insert(SortingTable, v);
+		end
+		table.sort(SortingTable, iMoneySort);
+		
+		local line, isSelf;
+		for i = 1, #SortingTable do
+			isSelf = (SortingTable[i].name == CharName);
+			
+			line = tip:AddLine(
+				("%s%s|r%s"):format(
+					ClassColors[SortingTable[i].class],
+					SortingTable[i].name,
+					(isSelf and " |TInterface\\RAIDFRAME\\ReadyCheck-Ready:12:12|t" or "")
+				),
+				CreateMoneyString(SortingTable[i].gold)
+			);
+			total = total + SortingTable[i].gold;
+			
+			if( not isSelf ) then
+				tip:SetLineScript(line, "OnMouseDown", LineClick, SortingTable[i].name);
+				tip:SetLineScript(line, "OnEnter", LineEnter, SortingTable[i].name);
+				tip:SetLineScript(line, "OnLeave", LineLeave);
+			end
+		end
+		
+		tclear(SortingTable);
+		
+		tip:AddLine(" ");
+		tip:AddLine(
+			(COLOR_GOLD):format(L["Total Gold"]),
+			CreateMoneyString(total)
+		);
+	else
+		tip:AddLine((COLOR_GOLD):format("Right-click to remove"));
+	end
 end
+
+---------------------
+-- Final stuff
+---------------------
+
+_G.StaticPopupDialogs["IMONEY_DELETE"] = {
+	preferredIndex = 3, -- apparently avoids some UI taint
+	button1 = "Delete",
+	button2 = "Cancel",
+	showAlert = 1,
+	timeout = 0,
+	hideOnEscape = true,
+	OnAccept = function(self, data)
+		iMoney:DeleteChar(data);
+	end,
+};
