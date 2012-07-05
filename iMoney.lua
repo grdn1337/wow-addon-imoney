@@ -142,6 +142,10 @@ local function CreateMoneyString(money, encolor)
 					((copper > 0 and silver > 0) and " " or "")..
 					(copper > 0 and copper..ICON_COPPER or "");
 		
+		if( isLoss ) then
+			str = "-"..str;
+		end
+		
 		-- this may happen, tricky one!			
 		if( str == "" ) then
 			str = copper..ICON_COPPER;
@@ -150,7 +154,7 @@ local function CreateMoneyString(money, encolor)
 	
 	if( encolor ) then
 		if( isLoss ) then
-			str = (COLOR_RED):format("-"..str);
+			str = (COLOR_RED):format(str);
 		else
 			str = (COLOR_GREEN):format(str);
 		end
@@ -190,7 +194,7 @@ end
 
 local function LineClick(_, name, button)
 	if( button == "RightButton" ) then
-		_G.StaticPopupDialogs["IMONEY_DELETE"].text = ("%s\n%s: %s"):format("Confirm to delete from iMoney!", "Character", name);
+		_G.StaticPopupDialogs["IMONEY_DELETE"].text = ("%s\n%s: %s"):format(L["Confirm to delete from iMoney!"], _G.CHARACTER, name);
 		
 		local popup = _G.StaticPopup_Show("IMONEY_DELETE");
 		if( popup ) then
@@ -224,6 +228,7 @@ local SortingTable = {};
 function iMoney:UpdateTooltip(queryName)
 	local tip = Tooltip;
 	local name = CharName;
+	local line;
 	
 	if( queryName ) then
 		tip = HintTip;
@@ -257,7 +262,7 @@ function iMoney:UpdateTooltip(queryName)
 		end
 		table.sort(SortingTable, iMoneySort);
 		
-		local line, isSelf;
+		local isSelf;
 		for i = 1, #SortingTable do
 			isSelf = (SortingTable[i].name == CharName);
 			
@@ -286,7 +291,8 @@ function iMoney:UpdateTooltip(queryName)
 			CreateMoneyString(total)
 		);
 	else
-		tip:AddLine((COLOR_GOLD):format("Right-click to remove"));
+		line = tip:AddLine("");
+		tip:SetCell(line, 1, (COLOR_GOLD):format(L["Right-click to remove"]), nil, "LEFT", 2);
 	end
 end
 
