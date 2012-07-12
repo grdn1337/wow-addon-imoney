@@ -2,21 +2,23 @@
 -- Setting up scope, upvalues and libs
 -----------------------------------
 
-local AddonName = select(1, ...);
-iMoney = LibStub("AceAddon-3.0"):NewAddon(AddonName, "AceEvent-3.0");
+local AddonName, iMoney = ...;
+LibStub("AceEvent-3.0"):Embed(iMoney);
 
 local L = LibStub("AceLocale-3.0"):GetLocale(AddonName);
 
-local LibQTip = LibStub("LibQTip-1.0");
+local _G = _G;
+local format = _G.string.format;
 
-local _G = _G; -- upvalueing done here, since I call Globales with _G.func()...
+-------------------------------
+-- Registering with iLib
+-------------------------------
+
+LibStub("iLib"):Register(AddonName, nil, iMoney);
 
 ------------------------------------------
 -- Variables, functions and colors
 ------------------------------------------
-
-local Tooltip; -- This is our QTip object
-local HintTip; -- This is another QTip object
 
 local Gold = 0; -- This variable stores our current amount of gold
 local OldGold = 0; -- When the gold changed, here the "old" amount is been saved. We need that to calcualte if we made more or less money.
@@ -30,55 +32,32 @@ local ICON_GOLD   = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:2:0|t";
 local ICON_SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:2:0|t";
 local ICON_COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:2:0|t";
 
-local ClassColors = {};
-for k in pairs(_G.LOCALIZED_CLASS_NAMES_MALE) do
-	local c = _G.RAID_CLASS_COLORS[k];
-	ClassColors[k] = ("|cff%02x%02x%02x"):format(c.r *255, c.g *255, c.b *255);
-end
-
-local function tclear(t, wipe)
-	if( type(t) ~= "table" ) then return end;
-	for k in pairs(t) do
-		t[k] = nil;
-	end
-	t[''] = 1;
-	t[''] = nil;
-	if( wipe ) then
-		t = nil;
-	end
-end
-
 -----------------------------
--- Setting up the feed
+-- Setting up the LDB
 -----------------------------
 
-iMoney.Feed = LibStub("LibDataBroker-1.1"):NewDataObject(AddonName, {
+iMoney.ldb = LibStub("LibDataBroker-1.1"):NewDataObject(AddonName, {
 	type = "data source",
-	text = "",
+	text = AddonName,
 });
 
-iMoney.Feed.OnEnter = function(anchor)
-	-- LibQTip is able to display more than one tooltips.
-	-- Due to this behaviour we need to hide all other tips of the iAddons to prevent showing more LDB tips at once.
-	for k, v in LibQTip:IterateTooltips() do
-		if( type(k) == "string" and strsub(k, 1, 6) == "iSuite" ) then
-			v:Release(k);
-		end
+iMoney.ldb.OnEnter = function(anchor)
+	if( iMoney:IsTooltip("Main") ) then
+		return;
 	end
+	iMoney:HideAllTooltips();
 	
-	Tooltip = LibQTip:Acquire("iSuite"..AddonName);
-	Tooltip:SetColumnLayout(2, "LEFT", "RIGHT");
-	Tooltip:SetAutoHideDelay(0.1, anchor);
-	Tooltip:SmartAnchorTo(anchor);
-	iMoney:UpdateTooltip();
-	Tooltip:Show();
+	local tip = iMoney:GetTooltip("Main", "UpdateTooltip");
+	tip:SetAutoHideDelay(0.25, anchor);
+	tip:SmartAnchorTo(anchor);
+	tip:Show();
 end
 
 ----------------------
 -- Initializing
 ----------------------
 
-function iMoney:OnInitialize()
+function iMoney:Boot()
 	self.db = LibStub("AceDB-3.0"):New("iMoneyDB", {realm={today="",chars={}}}, true).realm;
 	
 	-- character currently missing in the table? no problem!
@@ -88,16 +67,9 @@ function iMoney:OnInitialize()
 			gold = 0, -- current amount of gold
 			gold_in = 0, -- amount of gold earned during session
 			gold_out = 0, -- amount of gold spent during session
-			class = class, -- unlocalized class name, e.g. PALADIN, PRIEST, MONK, ROGUE, ... this is important for displaying encolors charnames
+			class = class, -- unlocalized class name, e.g. PALADIN, PRIEST, ... this is important for displaying colored charnames
 		};
 	end
-	
-	self:RegisterEvent("PLAYER_MONEY", "UpdateMoney", 1); -- the third argument tells iMoney if it's not the first Money Update
-	self:RegisterEvent("PLAYER_ENTERING_WORLD", "FirstRun");
-end
-
-function iMoney:FirstRun()
-	self:UpdateMoney(); -- we just can call GetMoney() on Entering World, that's why this call is here
 	
 	local c = self.db.chars[CharName];
 	local today = date("%y-%m-%d");
@@ -112,7 +84,11 @@ function iMoney:FirstRun()
 			v.gold_out = 0;
 		end
 	end
+	
+	self:RegisterEvent("PLAYER_MONEY", "UpdateMoney");
+	self:UpdateMoney("", true); -- the argument tells iMoney that's the first run
 end
+iMoney:RegisterEvent("PLAYER_ENTERING_WORLD", "Boot");
 
 function iMoney:DeleteChar(name)
 	self.db.chars[name] = nil;
@@ -122,7 +98,7 @@ end
 -- MoneyString and UpdateMoney
 ------------------------------------------
 
-local function CreateMoneyString(money, encolor)
+local function money_string(money, encolor)
 	local str;
 	local cfgStr___placeholder = 1; -- maybe I will add other display options in a later release
 	
@@ -163,14 +139,14 @@ local function CreateMoneyString(money, encolor)
 	return str;
 end
 
-function iMoney:UpdateMoney(notFirst)
+function iMoney:UpdateMoney(event, firstRun)
 	local money = _G.GetMoney();
 	
 	-- in an older version, iMoney did not have this feature. so we must check if the config values are there.
 	if( self.db.chars[CharName].gold_in == nil ) then self.db.chars[CharName].gold_in = 0 end
 	if( self.db.chars[CharName].gold_out == nil ) then self.db.chars[CharName].gold_out = 0 end
 	
-	if( notFirst ) then
+	if( not firstRun ) then
 		if( money > Gold ) then
 			self.db.chars[CharName].gold_in = self.db.chars[CharName].gold_in + (money - Gold);
 		else
@@ -180,16 +156,25 @@ function iMoney:UpdateMoney(notFirst)
 	Gold = money;
 	
 	self.db.chars[CharName].gold = money;
-	self.Feed.text = CreateMoneyString(money);
+	self.ldb.text = money_string(money);
 end
 
 ------------------------------------------
 -- UpdateTooltip
 ------------------------------------------
 
+local queryName;
+local function LineEnter(anchor, name)
+	queryName = name;
+	
+	local tip = iMoney:GetTooltip("Hint", "UpdateTooltipQueryName");
+	tip:SetPoint("TOPLEFT", anchor, "BOTTOMRIGHT", 10, anchor:GetHeight()+2);
+	tip:Show();
+end
+
 local function LineLeave()
-	HintTip:Hide();
-	HintTip:Release();
+	iMoney:GetTooltip("Hint"):Release();
+	queryName = nil;
 end
 
 local function LineClick(_, name, button)
@@ -199,17 +184,9 @@ local function LineClick(_, name, button)
 		local popup = _G.StaticPopup_Show("IMONEY_DELETE");
 		if( popup ) then
 			popup.data = name;
-			Tooltip:Hide();
+			iMoney:GetTooltip("Main"):Release();
 		end
 	end
-end
-
-local function LineEnter(anchor, name)
-	HintTip = LibQTip:Acquire("iSuite"..AddonName.."Hint");
-	HintTip:SetColumnLayout(2, "LEFT", "RIGHT");
-	HintTip:SetPoint("TOPLEFT", anchor, "BOTTOMRIGHT", 10, anchor:GetHeight()+2);
-	iMoney:UpdateTooltip(name);
-	HintTip:Show();
 end
 
 local function iMoneySort(a, b, sortByName)
@@ -224,33 +201,32 @@ local function iMoneySort(a, b, sortByName)
 	end
 end
 
+function iMoney:UpdateTooltipQueryName(tip)
+	self:UpdateTooltip(tip, queryName);
+end
+
 local SortingTable = {};
-function iMoney:UpdateTooltip(queryName)
-	local tip = Tooltip;
-	local name = CharName;
+function iMoney:UpdateTooltip(tip, queryName)
+	local name = queryName and queryName or CharName;
 	local line;
 	
-	if( queryName ) then
-		tip = HintTip;
-		name = queryName;
-	end
-	
 	tip:Clear();
+	tip:SetColumnLayout(2, "LEFT", "RIGHT");
 	
 	if( queryName ) then
 		tip:AddHeader(
-			("%s%s|r"):format(ClassColors[self.db.chars[name].class], name)
+			("|c%s%s|r"):format(_G.RAID_CLASS_COLORS[self.db.chars[name].class].colorStr, name)
 		);
 		tip:AddLine("");
 	end
 	
 	tip:AddLine(
 		(COLOR_GOLD):format(L["Today Session"]),
-		CreateMoneyString(self.db.chars[name].gold_in - self.db.chars[name].gold_out, true)
+		money_string(self.db.chars[name].gold_in - self.db.chars[name].gold_out, true)
 	);
 	tip:AddSeparator(); -- my sister wanted it to bad! So here it is: a line in the tip. :D
-	tip:AddLine(L["Gains"], CreateMoneyString(self.db.chars[name].gold_in, true));
-	tip:AddLine(L["Losses"], CreateMoneyString(-self.db.chars[name].gold_out, true));
+	tip:AddLine(L["Gains"], money_string(self.db.chars[name].gold_in, true));
+	tip:AddLine(L["Losses"], money_string(-self.db.chars[name].gold_out, true));
 	tip:AddLine(" ");
 	
 	if( not queryName ) then
@@ -267,12 +243,12 @@ function iMoney:UpdateTooltip(queryName)
 			isSelf = (SortingTable[i].name == CharName);
 			
 			line = tip:AddLine(
-				("%s%s|r%s"):format(
-					ClassColors[SortingTable[i].class],
+				("|c%s%s|r%s"):format(
+					_G.RAID_CLASS_COLORS[SortingTable[i].class].colorStr,
 					SortingTable[i].name,
 					(isSelf and " |TInterface\\RAIDFRAME\\ReadyCheck-Ready:12:12|t" or "")
 				),
-				CreateMoneyString(SortingTable[i].gold)
+				money_string(SortingTable[i].gold)
 			);
 			total = total + SortingTable[i].gold;
 			
@@ -283,16 +259,16 @@ function iMoney:UpdateTooltip(queryName)
 			end
 		end
 		
-		tclear(SortingTable);
+		_G.wipe(SortingTable);
 		
 		tip:AddLine(" ");
 		tip:AddLine(
 			(COLOR_GOLD):format(L["Total Gold"]),
-			CreateMoneyString(total)
+			money_string(total)
 		);
 	else
 		line = tip:AddLine("");
-		tip:SetCell(line, 1, (COLOR_GOLD):format(L["Right-click to remove"]), nil, "LEFT", 2);
+		tip:SetCell(line, 1, (COLOR_GOLD):format(L["Right-click to remove"]), nil, "LEFT", 0);
 	end
 end
 
