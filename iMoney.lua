@@ -28,10 +28,6 @@ local COLOR_GOLD = "|cfffed100%s|r";
 local COLOR_RED  = "|cffff0000%s|r";
 local COLOR_GREEN= "|cff00ff00%s|r";
 
-local ICON_GOLD   = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:2:0|t";
-local ICON_SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:2:0|t";
-local ICON_COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:2:0|t";
-
 -----------------------------
 -- Setting up the LDB
 -----------------------------
@@ -45,6 +41,7 @@ iMoney.ldb.OnEnter = function(anchor)
 	if( iMoney:IsTooltip("Main") ) then
 		return;
 	end
+	
 	iMoney:HideAllTooltips();
 	
 	local tip = iMoney:GetTooltip("Main", "UpdateTooltip");
@@ -52,6 +49,8 @@ iMoney.ldb.OnEnter = function(anchor)
 	tip:SmartAnchorTo(anchor);
 	tip:Show();
 end
+
+iMoney.ldb.OnLeave = function() end
 
 ----------------------
 -- Initializing
@@ -98,9 +97,12 @@ end
 -- MoneyString and UpdateMoney
 ------------------------------------------
 
+local ICON_GOLD   = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:1|t";
+local ICON_SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:1|t";
+local ICON_COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:1|t";
+
 local function money_string(money, encolor)
 	local str;
-	local cfgStr___placeholder = 1; -- maybe I will add other display options in a later release
 	
 	local isLoss, gold, silver, copper;
 	
@@ -111,21 +113,19 @@ local function money_string(money, encolor)
 	silver = floor((money - (gold * 100 * 100)) / 100);
 	copper = mod(money, 100);
 	
-	if( cfgStr___placeholder == 1 ) then
-		str =	(gold > 0 and _G.BreakUpLargeNumbers(gold)..ICON_GOLD or "")..
-					((silver > 0 and gold > 0) and " " or "")..
-					(silver > 0 and silver..ICON_SILVER or "")..
+  	str	= (gold > 0 and _G.BreakUpLargeNumbers(gold).." "..ICON_GOLD or "")..
+				  ((silver > 0 and gold > 0) and " " or "")..
+					(silver > 0 and (silver < 10 and "0" or "")..silver.." "..ICON_SILVER or "")..
 					((copper > 0 and silver > 0) and " " or "")..
-					(copper > 0 and copper..ICON_COPPER or "");
-		
-		if( isLoss ) then
-			str = "-"..str;
-		end
-		
-		-- this may happen, tricky one!			
-		if( str == "" ) then
-			str = copper..ICON_COPPER;
-		end
+					(copper > 0 and (copper < 10 and "0" or "")..copper.." "..ICON_COPPER or "");
+	
+	-- this may happen, tricky one!			
+	if( str == "" ) then
+		str = copper.." "..ICON_COPPER;
+	end
+	
+	if( isLoss ) then
+		str = "-"..str;
 	end
 	
 	if( encolor ) then
@@ -212,6 +212,13 @@ function iMoney:UpdateTooltip(tip, queryName)
 	
 	tip:Clear();
 	tip:SetColumnLayout(2, "LEFT", "RIGHT");
+	
+	-- check for addon updates
+	if( LibStub("iLib"):IsUpdate(AddonName) ) then
+		line = tip:AddHeader(" ");
+		tip:SetCell(line, 1, "|cffff0000Addon Update available!|r", nil, "CENTER", 0);
+	end
+	--------------------------
 	
 	if( queryName ) then
 		tip:AddHeader(
