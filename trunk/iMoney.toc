@@ -1,6 +1,6 @@
 ## Interface: 50100
 ## Title: i|cffffffaaMoney|r
-## Version: 2.0.1
+## Version: 2.0.7
 ## Notes: The money display for your broker bar!
 ## Author: grdn
 ## SavedVariables: iMoneyDB
