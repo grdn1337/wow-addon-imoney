@@ -7,6 +7,8 @@ LibStub("AceEvent-3.0"):Embed(iMoney);
 
 local L = LibStub("AceLocale-3.0"):GetLocale(AddonName);
 
+local Dialog = LibStub("LibDialog-1.0");
+
 local _G = _G;
 local format = _G.string.format;
 
@@ -15,6 +17,17 @@ local format = _G.string.format;
 -------------------------------
 
 LibStub("iLib"):Register(AddonName, nil, iMoney);
+
+local DialogTable = {
+	text = "",
+	buttons = {
+		{text = _G.DELETE, on_click = function(self, data)
+			iMoney:DeleteChar(data);
+		end},
+		{text = _G.CANCEL},
+	},
+};
+Dialog:Register("iMoneyDelete", DialogTable);
 
 ------------------------------------------
 -- Variables, functions and colors
@@ -179,13 +192,10 @@ end
 
 local function LineClick(_, name, button)
 	if( button == "RightButton" ) then
-		_G.StaticPopupDialogs["IMONEY_DELETE"].text = ("%s\n%s: %s"):format(L["Confirm to delete from iMoney!"], _G.CHARACTER, name);
+		Dialog:Dismiss("iMoneyDelete");
 		
-		local popup = _G.StaticPopup_Show("IMONEY_DELETE");
-		if( popup ) then
-			popup.data = name;
-			iMoney:GetTooltip("Main"):Release();
-		end
+		DialogTable.text = ("%s\n%s: %s"):format(L["Confirm to delete from iMoney!"], _G.CHARACTER, name);
+		Dialog:Spawn("iMoneyDelete", name);
 	end
 end
 
@@ -278,19 +288,3 @@ function iMoney:UpdateTooltip(tip, queryName)
 		tip:SetCell(line, 1, (COLOR_GOLD):format(L["Right-click to remove"]), nil, "LEFT", 0);
 	end
 end
-
----------------------
--- Final stuff
----------------------
-
-_G.StaticPopupDialogs["IMONEY_DELETE"] = {
-	preferredIndex = 3, -- apparently avoids some UI taint
-	button1 = "Delete",
-	button2 = "Cancel",
-	showAlert = 1,
-	timeout = 0,
-	hideOnEscape = true,
-	OnAccept = function(self, data)
-		iMoney:DeleteChar(data);
-	end,
-};
