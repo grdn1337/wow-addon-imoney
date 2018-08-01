@@ -1,0 +1,9 @@
+## Interface: 80000
+## Title: i|cffffffaaMoney|r
+## Version: 8.0.2
+## Notes: The money display for your broker bar!
+## Author: grdn
+## SavedVariables: iMoneyDB
+## OptionalDeps: Ace3, iLib, LibDialog-1.0
+
+includes.xml
