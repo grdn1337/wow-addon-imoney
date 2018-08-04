@@ -12,4 +12,12 @@ L["Losses"] = "Ausgaben"
 L["Right-click to remove"] = "Rechtsklick zum Entfernen"
 L["Today Session"] = "Heutige Sitzung"
 L["Total Gold"] = "Gold Gesamt"
+
+L["Profit"] = "Profit"
+L["Today"] = "Heute"
+L["Week"] = "Woche"
+L["Month"] = "Monat"
+L["Overall"] = "Gesamte Zeit"
+L["Other Realms"] = "Andere Realms"
+L["Characters"] = "Charaktere"
 --@end-do-not-package@
