@@ -318,20 +318,6 @@ end
 -- UpdateTooltip
 ------------------------------------------
 
-local queryName;
-local function LineEnter(anchor, name)
-	queryName = name;
-	
-	local tip = iMoney:GetTooltip("Hint", "UpdateTooltipQueryName");
-	tip:SetPoint("TOPLEFT", anchor, "BOTTOMRIGHT", 10, anchor:GetHeight()+2);
-	tip:Show();
-end
-
-local function LineLeave()
-	iMoney:GetTooltip("Hint"):Release();
-	queryName = nil;
-end
-
 local function LineClick(_, name, button)
 	if( button == "RightButton" ) then
 		Dialog:Dismiss("iMoneyDelete");
@@ -341,16 +327,8 @@ local function LineClick(_, name, button)
 	end
 end
 
+
 local function iMoneySort(a, b, sortByName)
-	--if( sortByName ) then
-	--	return a.name < b.name;
-	--else
-	--	if( a.gold == b.gold ) then
-	--		return iMoneySort(a, b, true);
-	--	else
-	--		return a.gold > b.gold;
-	--	end
-	--end
 	if( sortByName ) then
 		return a < b;
 	else
@@ -362,12 +340,56 @@ local function iMoneySort(a, b, sortByName)
 	end
 end
 
-function iMoney:UpdateTooltipQueryName(tip)
-	self:UpdateTooltip(tip, queryName);
+
+local queryData;
+local function LineEnter(anchor, query)
+	queryData = query;
+	
+	local tip = iMoney:GetTooltip("Hint", "UpdateTooltipQuery");
+	tip:SetPoint("TOPLEFT", anchor, "BOTTOMRIGHT", 10, anchor:GetHeight() + 2);
+	tip:Show();
 end
 
+local function LineLeave()
+	iMoney:GetTooltip("Hint"):Release();
+	queryData = nil;
+end
+
+function iMoney:UpdateTooltipQuery(tip)
+	local line;
+	
+	tip:Clear();
+	tip:SetColumnLayout(3, "LEFT", "LEFT", "RIGHT");
+	
+	-- fetch query data
+	local realm = self.db.Realms[queryData.queryRealm];
+	
+	tip:AddHeader((COLOR_GOLD):format(L["Today"]));
+	
+	for name, cfg in pairs(realm) do
+		if( queryData.queryType == "realm" or (queryData.queryType == "char" and queryData.queryName == name) ) then
+			tip:AddLine(" ");
+			
+			tip:AddLine(("%s |c%s%s|r"):format(
+					"|TInterface\\FriendsFrame\\PlusManz-"..cfg.faction..":"..(iconSize + 2)..":"..(iconSize + 2).."|t",
+					_G.RAID_CLASS_COLORS[cfg.class].colorStr,
+					name
+				), (COLOR_GOLD):format(L["Profit"]), money_string(cfg.earned - cfg.spent, true));
+			tip:AddSeparator();
+			tip:AddLine("", L["Gains"], money_string(cfg.earned, true));
+			tip:AddLine("", L["Losses"], money_string(-cfg.spent, true));
+			
+			if( queryData.queryType == "realm" ) then
+				tip:AddSeparator();
+				tip:AddLine("", (COLOR_GOLD):format(L["Total Gold"]), money_string(cfg.gold));
+			end
+		end
+	end
+end
+
+
 local SortingTable = {};
-function iMoney:UpdateTooltip(tip, queryKey, queryValue)
+function iMoney:UpdateTooltip(tip)
 	local line;
 	local earned, spent;
 	
@@ -428,13 +450,19 @@ function iMoney:UpdateTooltip(tip, queryKey, queryValue)
 		local name = SortingTable[i];
 		local cfg = StoreRealm[name];
 		
-		tip:AddLine(
+		line = tip:AddLine(
 			("%s |c%s%s|r"):format(
 				"|TInterface\\FriendsFrame\\PlusManz-"..cfg.faction..":"..(iconSize + 2)..":"..(iconSize + 2).."|t",
 				_G.RAID_CLASS_COLORS[cfg.class].colorStr,
 				name
 			), "", money_string(cfg.gold)
 		);
+		
+		-- Set scripts for line
+		--if( name ~= self.ConfigData.charname ) then
+			tip:SetLineScript(line, "OnEnter", LineEnter, {queryType = "char", queryRealm = self.ConfigData.realm, queryName = name});
+			tip:SetLineScript(line, "OnLeave", LineLeave);
+		--end
 	end
 	
 	_G.wipe(SortingTable);
@@ -454,7 +482,10 @@ function iMoney:UpdateTooltip(tip, queryKey, queryValue)
 		table.sort(self.db.Realms);
 		for k, _ in pairs(self.db.Realms) do
 			if( k ~= self.ConfigData.realm ) then
-				tip:AddLine(k, "", money_string(self.CumulatedGold[k][1] or 0));
+				line = tip:AddLine(k, "", money_string(self.CumulatedGold[k][1] or 0));
+				
+				tip:SetLineScript(line, "OnEnter", LineEnter, {queryType = "realm", queryRealm = k, queryName = ""});
+				tip:SetLineScript(line, "OnLeave", LineLeave);
 			end
 		end
 	end
