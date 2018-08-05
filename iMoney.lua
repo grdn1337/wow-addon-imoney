@@ -164,7 +164,7 @@ end
 iMoney:RegisterEvent("PLAYER_ENTERING_WORLD", "Boot");
 
 function iMoney:DeleteChar(name)
-	--self.db.chars[name] = nil;
+	StoreRealm[name] = nil;
 end
 
 ------------------------------------------
@@ -385,6 +385,13 @@ function iMoney:UpdateTooltipQuery(tip)
 			end
 		end
 	end
+	
+	if( queryData.queryType == "char" ) then
+		tip:AddLine(" ");
+		
+		line = tip:AddLine("");
+		tip:SetCell(line, 1, (COLOR_GOLD):format(L["Right-click to remove"]), nil, "LEFT", 3);
+	end
 end
 
 
@@ -459,10 +466,12 @@ function iMoney:UpdateTooltip(tip)
 		);
 		
 		-- Set scripts for line
-		--if( name ~= self.ConfigData.charname ) then
-			tip:SetLineScript(line, "OnEnter", LineEnter, {queryType = "char", queryRealm = self.ConfigData.realm, queryName = name});
-			tip:SetLineScript(line, "OnLeave", LineLeave);
-		--end
+		if( name ~= self.ConfigData.charname ) then
+			tip:SetLineScript(line, "OnMouseDown", LineClick, name);
+		end
+		
+		tip:SetLineScript(line, "OnEnter", LineEnter, {queryType = "char", queryRealm = self.ConfigData.realm, queryName = name});
+		tip:SetLineScript(line, "OnLeave", LineLeave);
 	end
 	
 	_G.wipe(SortingTable);
@@ -488,83 +497,6 @@ function iMoney:UpdateTooltip(tip)
 				tip:SetLineScript(line, "OnLeave", LineLeave);
 			end
 		end
-	end
-end
-
-
-
-
-
-function iMoney:UpdateTooltip_old(tip, queryName)
-	local name = queryName and queryName or CharName;
-	local line;
-	
-	tip:Clear();
-	tip:SetColumnLayout(2, "LEFT", "RIGHT");
-	
-	-- check for addon updates
-	if( LibStub("iLib"):IsUpdate(AddonName) ) then
-		line = tip:AddHeader(" ");
-		tip:SetCell(line, 1, "|cffff0000Addon Update available!|r", nil, "CENTER", 0);
-	end
-	--------------------------
-	
-	if( queryName ) then
-		tip:AddHeader(
-			("|c%s%s|r"):format(_G.RAID_CLASS_COLORS[self.db.chars[name].class].colorStr, name)
-		);
-		tip:AddLine("");
-	end
-	
-	tip:AddLine(
-		(COLOR_GOLD):format(L["Today Session"]),
-		money_string(self.db.chars[name].gold_in - self.db.chars[name].gold_out, true)
-	);
-	tip:AddSeparator(); -- my sister wanted it to bad! So here it is: a line in the tip. :D
-	tip:AddLine(L["Gains"], money_string(self.db.chars[name].gold_in, true));
-	tip:AddLine(L["Losses"], money_string(-self.db.chars[name].gold_out, true));
-	tip:AddLine(" ");
-	
-	if( not queryName ) then
-		local total = 0;
-		
-		for k, v in pairs(self.db.chars) do
-			v.name = k;
-			table.insert(SortingTable, v);
-		end
-		table.sort(SortingTable, iMoneySort);
-		
-		local isSelf;
-		for i = 1, #SortingTable do
-			isSelf = (SortingTable[i].name == CharName);
-			
-			line = tip:AddLine(
-				("|c%s%s|r%s"):format(
-					_G.RAID_CLASS_COLORS[SortingTable[i].class].colorStr,
-					SortingTable[i].name,
-					(isSelf and " |TInterface\\RAIDFRAME\\ReadyCheck-Ready:12:12|t" or "")
-				),
-				money_string(SortingTable[i].gold)
-			);
-			total = total + SortingTable[i].gold;
-			
-			if( not isSelf ) then
-				tip:SetLineScript(line, "OnMouseDown", LineClick, SortingTable[i].name);
-				tip:SetLineScript(line, "OnEnter", LineEnter, SortingTable[i].name);
-				tip:SetLineScript(line, "OnLeave", LineLeave);
-			end
-		end
-		
-		_G.wipe(SortingTable);
-		
-		tip:AddLine(" ");
-		tip:AddLine(
-			(COLOR_GOLD):format(L["Total Gold"]),
-			money_string(total)
-		);
-	else
-		line = tip:AddLine("");
-		tip:SetCell(line, 1, (COLOR_GOLD):format(L["Right-click to remove"]), nil, "LEFT", 0);
 	end
 end
 
