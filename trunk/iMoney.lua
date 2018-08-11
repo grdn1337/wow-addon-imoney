@@ -74,6 +74,12 @@ end
 
 iMoney.ldb.OnLeave = function() end
 
+iMoney.ldb.OnClick = function(_, button)
+	if( button == "LeftButton" ) then
+		_G.ToggleAllBags();
+	end
+end
+
 ----------------------
 -- Initializing
 ----------------------
