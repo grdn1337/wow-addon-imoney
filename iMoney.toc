@@ -1,6 +1,6 @@
-## Interface: 11302
+## Interface: 11305
 ## Title: i|cffffffaaMoney|r |cff00ffffClassic|r
-## Version: 1.13.0
+## Version: 1.13.3
 ## Notes: The money display for your broker bar!
 ## Author: grdn
 ## SavedVariables: iMoneyDBv2
